@@ -1,6 +1,8 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
+#define DRONE_CAMERA 0 // if set to 1, the camera will be able to move up and down like a drone, otherwise it will stay at the same height
+
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -69,22 +71,23 @@ public:
     void ProcessKeyboard(Camera_Movement direction, float deltaTime)
     {
         float velocity = MovementSpeed * deltaTime;
+        float y = Position.y;
         if (direction == FORWARD){
             Position += Front * velocity;
-            Position.y = 0.0f;
         }
         if (direction == BACKWARD){
             Position -= Front * velocity;
-            Position.y = 0.0f;
         }
         if (direction == LEFT){
             Position -= Right * velocity;
-            Position.y = 0.0f;
         }
         if (direction == RIGHT){
             Position += Right * velocity;
-            Position.y = 0.0f;
         }
+        if (!DRONE_CAMERA) {
+            Position.y = y;
+        }
+
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
