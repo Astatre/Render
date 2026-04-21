@@ -219,9 +219,61 @@ int main()
  
     // be sure to activate shader when setting uniforms/drawing objects
         ourShader.use();
-        ourShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-        ourShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
-        ourShader.setVec3("lightPos", lightPos);
+
+        //gold material
+        float ambr = 0.24725f;
+        float ambg = 0.19950f;
+        float ambb = 0.07350f;
+        float difr = 0.75164f;
+        float difg = 0.60650f;
+        float difb = 0.22650f;
+        float specr = 0.628281f;
+        float specg = 0.555802f;
+        float specb = 0.366065f;
+        float shine = 0.4f * 128.0f;
+
+        //copper material
+        ambr = 0.19125f;
+        ambg = 0.0735f;
+        ambb = 0.0225f;
+        difr = 0.7038f;
+        difg = 0.27048f;
+        difb = 0.0828f;
+        specr = 0.256777f;
+        specg = 0.137622f;
+        specb = 0.086014f;
+        shine = 0.1f * 128.0f;
+
+        ourShader.setVec3("material.ambient", ambr, ambg, ambb);
+        ourShader.setVec3("material.diffuse", difr, difg, difb);
+        ourShader.setVec3("material.specular", specr, specg, specb);
+        ourShader.setFloat("material.shininess", shine);
+
+
+
+        ourShader.setVec3("light.position", lightPos);
+
+        ourShader.setVec3("light.ambient",1.0f, 1.0f, 1.0f);
+        ourShader.setVec3("light.diffuse", 1.0f, 1.0f, 1.0f);
+        ourShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+        /*
+        ourShader.setVec3("light.ambient", 0.2f, 0.2f, 0.2f);
+        ourShader.setVec3("light.diffuse", 0.5f, 0.5f, 0.5f); // darkened
+        ourShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+
+        glm::vec3 lightColor;
+        lightColor.x = sin(glfwGetTime() * 2.0f);
+        lightColor.y = sin(glfwGetTime() * 0.7f);
+        lightColor.z = sin(glfwGetTime() * 1.3f);
+        glm::vec3 diffuseColor = lightColor * glm::vec3(0.5f);
+        glm::vec3 ambientColor = diffuseColor * glm::vec3(0.2f);
+        ourShader.setVec3("light.ambient", ambientColor);
+        ourShader.setVec3("light.diffuse", diffuseColor);
+        */         
+       glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
+        
+
+
 
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -248,6 +300,7 @@ int main()
         model = glm::translate(model, lightPos);
         model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
         lightShader.setMat4("model", model);
+        lightShader.setVec3("lightColor", lightColor);
 
         glBindVertexArray(lightVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
