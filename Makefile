@@ -3,7 +3,7 @@ CC = gcc
 
 CXXFLAGS = -Wall -Wextra -std=c++17 -Iinclude
 
-LIBS = -lglfw -lGL -lX11 -lpthread -lXrandr -lXi -ldl
+LIBS = -lglfw -lGL -lX11 -lpthread -lXrandr -lXi -ldl -lassimp
 
 OUT = app
 
