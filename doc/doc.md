@@ -142,3 +142,9 @@ Le programme vérifie et affiche les erreurs pour :
 - Rendu 3D avec transformations
 - Utilisation de modèles plus complexes
 
+
+## Depth + Stencil 
+
+![alt text](image2.png)
+
+![alt text](image1.png)
