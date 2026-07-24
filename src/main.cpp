@@ -1,6 +1,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <stb_image.h>
+#include <map>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -269,6 +270,8 @@ int main()
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 
     // build and compile shaders
     // -------------------------
@@ -277,60 +280,66 @@ int main()
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
-    float cubeVertices[] = {
-        // positions          // texture Coords
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+    
+float cubeVertices[] = {
+    // back face (normal -z)
+    -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, // LBB
+     0.5f,  0.5f, -0.5f, 1.0f, 1.0f, // RTB
+     0.5f, -0.5f, -0.5f, 1.0f, 0.0f, // RBB
+     0.5f,  0.5f, -0.5f, 1.0f, 1.0f, // RTB
+    -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, // LBB
+    -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, // LTB
 
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    // front face (normal +z)
+    -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, // LBF
+     0.5f, -0.5f,  0.5f, 1.0f, 0.0f, // RBF
+     0.5f,  0.5f,  0.5f, 1.0f, 1.0f, // RTF
+     0.5f,  0.5f,  0.5f, 1.0f, 1.0f, // RTF
+    -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, // LTF
+    -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, // LBF
 
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    // left face (normal -x)
+    -0.5f,  0.5f,  0.5f, 1.0f, 0.0f, // LTF
+    -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, // LTB
+    -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // LBB
+    -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // LBB
+    -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, // LBF
+    -0.5f,  0.5f,  0.5f, 1.0f, 0.0f, // LTF
 
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    // right face (normal +x)
+     0.5f,  0.5f,  0.5f, 1.0f, 0.0f, // RTF
+     0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // RBB
+     0.5f,  0.5f, -0.5f, 1.0f, 1.0f, // RTB
+     0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // RBB
+     0.5f,  0.5f,  0.5f, 1.0f, 0.0f, // RTF
+     0.5f, -0.5f,  0.5f, 0.0f, 0.0f, // RBF
 
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    // bottom face (normal -y, légèrement agrandie comme dans l'original)
+    -0.51f, -0.51f,  0.51f, 0.0f, 0.0f, // LBF'
+     0.51f, -0.51f, -0.51f, 1.0f, 1.0f, // RBB'
+     0.51f, -0.51f,  0.51f, 1.0f, 0.0f, // RBF'
+     0.51f, -0.51f, -0.51f, 1.0f, 1.0f, // RBB'
+    -0.51f, -0.51f,  0.51f, 0.0f, 0.0f, // LBF'
+    -0.51f, -0.51f, -0.51f, 0.0f, 1.0f, // LBB'
 
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-    };
+    // top face (normal +y)
+    -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, // LTB
+     0.5f,  0.5f,  0.5f, 1.0f, 0.0f, // RTF
+     0.5f,  0.5f, -0.5f, 1.0f, 1.0f, // RTB
+     0.5f,  0.5f,  0.5f, 1.0f, 0.0f, // RTF
+    -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, // LTB
+    -0.5f,  0.5f,  0.5f, 0.0f, 0.0f  // LTF
+};
     float planeVertices[] = {
-        // positions          // texture Coords (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
-         5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
-        -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
-        -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
+    // positions          // texture Coords (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
+    5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
+    -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
+    -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
 
-         5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
-        -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
-         5.0f, -0.5f, -5.0f,  2.0f, 2.0f
-    };
+     5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
+     5.0f, -0.5f, -5.0f,  2.0f, 2.0f,
+    -5.0f, -0.5f, -5.0f,  0.0f, 2.0f
+};
     // cube VAO
     unsigned int cubeVAO, cubeVBO;
     glGenVertexArrays(1, &cubeVAO);
@@ -386,11 +395,13 @@ int main()
     unsigned int cubeTexture = loadTexture("res/textures/marble.jpg");
     unsigned int floorTexture = loadTexture("res/textures/metal.png");
     unsigned int grassTexture = loadTexture("res/textures/grass.png");
+    unsigned int glassTexture = loadTexture("res/textures/window.png");
     // shader configuration
     // --------------------
     shader.use();
     shader.setInt("texture1", 0);
 
+    std::map<float, glm::vec3> sorted;
 
     // render loop
     // -----------
@@ -455,23 +466,31 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
 
-
-
-
         glBindVertexArray(vegetationVAO);
-        glBindTexture(GL_TEXTURE_2D, grassTexture);
+        glBindTexture(GL_TEXTURE_2D, glassTexture);
         glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        /*
         for(unsigned int i = 0; i < vegetation.size(); i++)
         {
         model = glm::mat4(1.0f);
         model = glm::translate(model, vegetation[i]);
         shader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        }*/
+       glDisable(GL_CULL_FACE);
+        for (unsigned int i = 0; i < vegetation.size(); i++){
+            float distance = glm::length(camera.Position - vegetation[i]);
+            sorted[distance] = vegetation[i];
         }
-
-
-
+        for(std::map<float,glm::vec3>::reverse_iterator it = sorted.rbegin(); it !=
+        sorted.rend(); ++it){
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, it->second);
+            shader.setMat4("model", model);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+        }
+        glEnable(GL_CULL_FACE);
 
 
         // 2nd. render pass: now draw slightly scaled versions of the objects, this time disabling stencil writing.
