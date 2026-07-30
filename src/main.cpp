@@ -159,12 +159,13 @@ int main()
     float planeVertices[] = {
     // positions          // texture Coords (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
      5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
-    -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
     -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
+    -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
+
 
      5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
-    -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
-     5.0f, -0.5f, -5.0f,  2.0f, 2.0f
+     5.0f, -0.5f, -5.0f,  2.0f, 2.0f,
+    -5.0f, -0.5f, -5.0f,  0.0f, 2.0f 
     };
 
 
@@ -304,10 +305,23 @@ int main()
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
+
+    unsigned int uniformBlockIndex = glGetUniformBlockIndex(shader.ID, "Matrices");
+    unsigned int uniformBlockIndex2 = glGetUniformBlockIndex(skyboxShader.ID, "Matrices");
+    
+    glUniformBlockBinding(shader.ID, uniformBlockIndex, 0);
+    glUniformBlockBinding(skyboxShader.ID, uniformBlockIndex2, 0);
+
+    unsigned int uboMatrices;
+    glGenBuffers(1, &uboMatrices);
+    glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
+glBufferData(GL_UNIFORM_BUFFER, 2*sizeof(glm::mat4), NULL, GL_STATIC_DRAW);
+glBindBuffer(GL_UNIFORM_BUFFER, 0);
+glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices, 0,2 * sizeof(glm::mat4));
     // load textures
     // -------------
     stbi_set_flip_vertically_on_load(true);
-    //unsigned int cubeTexture = loadTexture("res/textures/marble.jpg");
+    unsigned int cubeTexture2 = loadTexture("res/textures/marble.jpg");
     unsigned int floorTexture = loadTexture("res/textures/metal.png");
     unsigned int grassTexture = loadTexture("res/textures/grass.png");
     unsigned int glassTexture = loadTexture("res/textures/window.png");
@@ -322,6 +336,8 @@ int main()
     // --------------------
     shader.use();
     shader.setInt("texture1", 0);
+    shader.setInt("texture2", 1);
+    shader.setInt("test", 0);
 
     shaderScreen.use();
     shaderScreen.setInt("screenTexture", 0);
@@ -355,6 +371,8 @@ int main()
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" <<std::endl;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
+
+
     // draw as wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -381,7 +399,7 @@ int main()
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ); // don't forget to clear the stencil buffer!
 
-                // second render pass: draw as normal
+        // second render pass: draw as normal
         // ----------------------------------
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -394,13 +412,22 @@ int main()
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         shader.setMat4("model", model);
-        shader.setMat4("view", view);
-        shader.setMat4("projection", projection);
         
+        glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4),glm::value_ptr(projection));
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+        glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
+        glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4),glm::value_ptr(view));
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
         // cubes
+        shader.setInt("test", 1);
         glBindVertexArray(cubeVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, cubeTexture);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, cubeTexture2);
         model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
         shader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -409,7 +436,9 @@ int main()
         shader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         // floor
+        shader.setInt("test", 0);
         glBindVertexArray(planeVAO);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
         shader.setMat4("model", glm::mat4(1.0f));
         glDrawArrays(GL_TRIANGLES, 0, 6);
