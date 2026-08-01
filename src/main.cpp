@@ -100,9 +100,15 @@ int main()
 */
     // build and compile shaders
     // -------------------------
-    Shader shader("src/shader/stencil.vs", "src/shader/stencil.fs");
-    Shader shaderScreen("src/shader/frameBuf.vs", "src/shader/frameBuf.fs");
-    Shader skyboxShader("src/shader/skyboxShader.vs", "src/shader/skyboxShader.fs");
+    // shader for rendering objects
+    Shader shader("src/shader/objects/objects.vs", "src/shader/objects/objects.fs");
+    // framebuffer shader
+    Shader shaderScreen("src/shader/frameBuf/frameBuf.vs", "src/shader/frameBuf/frameBuf.fs");
+    // skybox shader
+    Shader skyboxShader("src/shader/skybox/skyboxShader.vs", "src/shader/skybox/skyboxShader.fs");
+    // normal shader for visualizing normals
+    Shader normalShader("src/shader/normal/normal.vs", "src/shader/normal/normal.fs", "src/shader/normal/normal.gs");
+    
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -315,17 +321,17 @@ int main()
     unsigned int uboMatrices;
     glGenBuffers(1, &uboMatrices);
     glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
-glBufferData(GL_UNIFORM_BUFFER, 2*sizeof(glm::mat4), NULL, GL_STATIC_DRAW);
-glBindBuffer(GL_UNIFORM_BUFFER, 0);
-glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices, 0,2 * sizeof(glm::mat4));
+    glBufferData(GL_UNIFORM_BUFFER, 2*sizeof(glm::mat4), NULL, GL_STATIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices, 0,2 * sizeof(glm::mat4));
     // load textures
     // -------------
     stbi_set_flip_vertically_on_load(true);
-    unsigned int cubeTexture2 = loadTexture("res/textures/marble.jpg");
+    unsigned int cubeTexture = loadTexture("res/textures/marble.jpg");
     unsigned int floorTexture = loadTexture("res/textures/metal.png");
     unsigned int grassTexture = loadTexture("res/textures/grass.png");
     unsigned int glassTexture = loadTexture("res/textures/window.png");
-    unsigned int cubeTexture = loadTexture("res/container.png");
+    unsigned int cubeTexture2 = loadTexture("res/container.png");
 
 
     stbi_set_flip_vertically_on_load(false);
@@ -422,7 +428,7 @@ glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices, 0,2 * sizeof(glm::mat4));
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         // cubes
-        shader.setInt("test", 1);
+        //shader.setInt("test", 1);
         glBindVertexArray(cubeVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, cubeTexture);
@@ -443,6 +449,40 @@ glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices, 0,2 * sizeof(glm::mat4));
         shader.setMat4("model", glm::mat4(1.0f));
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
+
+
+        // draw normal vectors
+        normalShader.use();
+        normalShader.setMat4("projection", projection);
+        normalShader.setMat4("view", view);
+        model = glm::mat4(1.0f);
+
+
+
+        // cubes
+        normalShader.setInt("test", 1);
+        glBindVertexArray(cubeVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, cubeTexture);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, cubeTexture2);
+        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
+        normalShader.setMat4("model", model);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
+        normalShader.setMat4("model", model);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // floor
+        normalShader.setInt("test", 0);
+        glBindVertexArray(planeVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, floorTexture);
+        normalShader.setMat4("model", glm::mat4(1.0f));
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+
+
 
 
 
