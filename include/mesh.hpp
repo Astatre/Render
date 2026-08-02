@@ -36,6 +36,8 @@ class Mesh {
         vector<Texture> textures;
 
 
+        unsigned int VAO, VBO, EBO;
+
         // constructor
         Mesh(vector<Vertex> vertices, vector<unsigned int> indices,vector<Texture> textures){
             this->vertices = vertices;
@@ -72,8 +74,8 @@ class Mesh {
 
         private:
         // render data
-        unsigned int VAO, VBO, EBO;
-    
+        //unsigned int VAO, VBO, EBO;
+        
         void setupMesh(){
             glGenVertexArrays(1, &VAO);
             glGenBuffers(1, &VBO);

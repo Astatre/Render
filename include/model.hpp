@@ -15,6 +15,9 @@ unsigned int TextureFromFile(char const * path,const string &directory, bool gam
 class Model
 {
 public:
+    vector<Mesh> meshes;
+    vector<Texture> textures_loaded;
+
     Model(char *path){
         loadModel(path);
     }
@@ -26,9 +29,9 @@ public:
 
 private:
     // model data
-    vector<Mesh> meshes;
+   // vector<Mesh> meshes;
     string directory;
-    vector<Texture> textures_loaded;
+    //vector<Texture> textures_loaded;
     void loadModel(string path){
         Assimp::Importer import;
         const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);

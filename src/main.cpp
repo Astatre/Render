@@ -20,6 +20,9 @@
 // ============================================================================
 const unsigned int SCR_WIDTH = 1600;
 const unsigned int SCR_HEIGHT = 900;
+const float NEAR_PLANE = 0.1f;
+const float FAR_PLANE = 500.0f;
+
 
 // ============================================================================
 // GLOBAL VARIABLES
@@ -55,6 +58,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 4); // 4x antialiasing
 
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
@@ -88,7 +92,8 @@ int main()
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
-/*
+    glEnable(GL_MULTISAMPLE);
+    /*
     glDepthFunc(GL_LESS);
     glEnable(GL_STENCIL_TEST);
     glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
@@ -108,6 +113,8 @@ int main()
     Shader skyboxShader("src/shader/skybox/skyboxShader.vs", "src/shader/skybox/skyboxShader.fs");
     // normal shader for visualizing normals
     Shader normalShader("src/shader/normal/normal.vs", "src/shader/normal/normal.fs", "src/shader/normal/normal.gs");
+    // instanced shader for rendering many objects
+    Shader instancedShader("src/shader/instanced.vs", "src/shader/objects/objects.fs");
     
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
@@ -338,6 +345,13 @@ int main()
     vector<std::string> faces ={"res/textures/skybox/right.jpg","res/textures/skybox/left.jpg","res/textures/skybox/top.jpg","res/textures/skybox/bottom.jpg","res/textures/skybox/front.jpg","res/textures/skybox/back.jpg"};
     unsigned int cubemapTexture = loadCubemap(faces);
     
+
+    stbi_set_flip_vertically_on_load(true);
+
+    Model rock("res/objects/rock/rock.obj");
+    Model planet("res/objects/planet/planet.obj");
+
+
     // shader configuration
     // --------------------
     shader.use();
@@ -351,6 +365,10 @@ int main()
     skyboxShader.use();
     skyboxShader.setInt("skybox", 0);
 
+    instancedShader.use();
+    instancedShader.setInt("texture1", 0);
+    instancedShader.setInt("texture2", 1);
+    instancedShader.setInt("test", 0);    
 
     // framebuffer configuration 
     glGenFramebuffers(1, &framebuffer);
@@ -381,6 +399,72 @@ int main()
 
     // draw as wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+  unsigned int amount = 10000;
+    glm::mat4* modelMatrices;
+    modelMatrices = new glm::mat4[amount];
+    srand(static_cast<unsigned int>(glfwGetTime())); // initialize random seed
+    float radius = 150.0;
+    float offset = 25.0f;
+    for (unsigned int i = 0; i < amount; i++)
+    {
+        glm::mat4 model = glm::mat4(1.0f);
+        // 1. translation: displace along circle with 'radius' in range [-offset, offset]
+        float angle = (float)i / (float)amount * 360.0f;
+        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float x = sin(angle) * radius + displacement;
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float y = displacement * 0.4f; // keep height of asteroid field smaller compared to width of x and z
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float z = cos(angle) * radius + displacement;
+        model = glm::translate(model, glm::vec3(x, y, z));
+
+        // 2. scale: Scale between 0.05 and 0.25f
+        float scale = static_cast<float>((rand() % 20) / 100.0 + 0.05);
+        model = glm::scale(model, glm::vec3(scale));
+
+        // 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
+        float rotAngle = static_cast<float>((rand() % 360));
+        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
+
+        // 4. now add to list of matrices
+        modelMatrices[i] = model;
+    }
+
+    // configure instanced array
+    // -------------------------
+    unsigned int buffer;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &modelMatrices[0], GL_STATIC_DRAW);
+
+    // set transformation matrices as an instance vertex attribute (with divisor 1)
+    // note: we're cheating a little by taking the, now publicly declared, VAO of the model's mesh(es) and adding new vertexAttribPointers
+    // normally you'd want to do this in a more organized fashion, but for learning purposes this will do.
+    // -----------------------------------------------------------------------------------------------------------------------------------
+    for (unsigned int i = 0; i < rock.meshes.size(); i++)
+    {
+        unsigned int VAO = rock.meshes[i].VAO;
+        glBindVertexArray(VAO);
+        // set attribute pointers for matrix (4 times vec4)
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
+        glEnableVertexAttribArray(5);
+        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
+        glEnableVertexAttribArray(6);
+        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
+
+        glVertexAttribDivisor(3, 1);
+        glVertexAttribDivisor(4, 1);
+        glVertexAttribDivisor(5, 1);
+        glVertexAttribDivisor(6, 1);
+
+        glBindVertexArray(0);
+    }
+
+
 
 
     // render loop
@@ -416,7 +500,7 @@ int main()
         shader.use();
         glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 view = camera.GetViewMatrix();
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, NEAR_PLANE, FAR_PLANE);
         shader.setMat4("model", model);
         
         glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
@@ -426,6 +510,9 @@ int main()
         glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
         glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4),glm::value_ptr(view));
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+
+/*
 
         // cubes
         //shader.setInt("test", 1);
@@ -500,6 +587,33 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
         glDepthFunc(GL_LESS); // set depth function back to default
+*/
+
+
+        // draw planet
+        shader.use();
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(4.0f, 4.0f, 4.0f));
+        shader.setMat4("model", model);
+        planet.Draw(shader);
+        // draw meteorites
+
+
+        instancedShader.use();
+        instancedShader.setMat4("projection", projection);
+        instancedShader.setMat4("view", view);
+        
+        for(unsigned int i = 0; i < rock.meshes.size(); i++){
+        glBindVertexArray(rock.meshes[i].VAO);
+        glDrawElementsInstanced(GL_TRIANGLES, rock.meshes[i].indices.size(),
+        GL_UNSIGNED_INT, 0, amount);
+}
+
+
+
+
+
 
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -512,12 +626,30 @@ int main()
     // ------------------------------------------------------------------------
     glDeleteVertexArrays(1, &cubeVAO);
     glDeleteVertexArrays(1, &planeVAO);
+    glDeleteVertexArrays(1, &skyboxVAO);
+
     glDeleteBuffers(1, &cubeVBO);
     glDeleteBuffers(1, &planeVBO);
+    glDeleteBuffers(1, &skyboxVBO);
+    glDeleteBuffers(1, &uboMatrices);
+
     glDeleteFramebuffers(1, &framebuffer);
+
     glDeleteRenderbuffers(1, &rbo);
 
+    glDeleteTextures(1, &texColorBuffer);
+    glDeleteTextures(1, &cubemapTexture);
+    glDeleteTextures(1, &cubeTexture);
+    glDeleteTextures(1, &floorTexture);
+    glDeleteTextures(1, &grassTexture);
+    glDeleteTextures(1, &glassTexture);
+    glDeleteTextures(1, &cubeTexture2);
 
+    glDeleteProgram(shader.ID);
+    glDeleteProgram(shaderScreen.ID);
+    glDeleteProgram(skyboxShader.ID);
+    glDeleteProgram(normalShader.ID);
+    
     glfwTerminate();
     return 0;
 }
